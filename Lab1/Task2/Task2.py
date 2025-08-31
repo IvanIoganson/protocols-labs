@@ -1,70 +1,49 @@
 #!/usr/bin/env -S python3
 #-*- coding:utf-8 -*-
 
+from hashlib import shake_256
 from sys import argv
-import random
 
-#Преобразуем строку в число
-def string_to_int(s):
-    res = 0
-    for c in s:
-        res = res * 256 + ord(c)
-    return res
-    
-#Преобразуем число в строку
-def int_to_string(n):
-    res = ""
-    while n > 0:
-        res += chr(n % 256)
-        n //= 256
-    return res[::-1]
-
-#Тест Миллера—Рабина на простоту числа
-def is_prime(n, num_of_iter = 20):
-    if n%2 == 0:
-        return False
-    t = n - 1
-    s = 0
-    while t%2 == 0:
-        t //= 2
-        s += 1
-    for _ in range(num_of_iter):
-        a = random.randint(2, n - 1)
-        if pow(a, t, n) == 1:
+def hash_message_to_generator_Fp(m, p, p_1_factors):
+    g = m
+    h = shake_256()
+    g_len = (len(bin(p)) - 2) // 8 + 1
+    while True:
+        s = hex(g)[2:]
+        if len(s) % 2 == 1:
+            s = "0" + s
+        h.update(bytes.fromhex(s))
+        g = int(h.hexdigest(g_len), 16) % p
+        if g == 0 or g == 1:
             continue
-        i = 0
-        while i < s:
-            if pow(a, 2**i * t, n) == n-1:
+        is_generator = True
+        for f in p_1_factors:
+            if pow(g, (p-1) // f, p) == 1:
+                is_generator = False
                 break
-            i += 1
-        if i == s:
-            return False
-    return True
+        if is_generator:
+            return g     
 
-#Функция для генерации простого числа
-def next_prime(n):
-    res = n
-    if res % 2 == 0:
-        res += 1
-    while not is_prime(res):
-        res += 2
-    return res
+def my_hash(m):
+    while len(m) % 8 != 0:
+        m += b"\x00"
+    h = b"\x01\x23\x45\x67\x89\xab\xcd\xef"
+    for i in range(0, len(m), 8):
+        chunk = m[i:i+8]
+        Sg = [hash_message_to_generator_Fp(mi, 257, [2]) for mi in chunk]
+        L = [pow(sgi, mi, 257)-1 for sgi, mi in zip(Sg, chunk)]
+        next_h = bytes([hi ^ li for hi, li in zip(h, L)])
+        h = next_h
+    return h
 
 def main():
     if len(argv) < 2:
         print("Usage: %s message" % (argv[0]))
         return 0
-    message = string_to_int(argv[1])
-    p = next_prime(random.getrandbits(1024))
-    q = next_prime(p**2)
-    N = p*q
-    e = 65537
-    c = pow(message, e, N)
-    f = open("output.txt", "wt")
-    f.write("N = %d\n" % (N))
-    f.write("c = %d\n" % (c))
-    f.close()
+    h = my_hash(argv[1].encode())
+    print(h.hex())
     return 0
+
 
 if __name__ == "__main__":
     main()
