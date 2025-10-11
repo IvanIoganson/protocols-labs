@@ -7,12 +7,6 @@ import threading
 import time
 import random
 
-def str_to_int(s):
-    return int(bytes.hex(s.encode()),16)
-    
-def int_to_str(n):
-    return bytes.fromhex(hex(n)[2:]).decode()
-
 def get_flag():
     in_f = open("Task4/flag.txt", "r")
     flag = in_f.read()
@@ -50,14 +44,6 @@ def next_prime(n):
         res += 2
     return res
 
-#Расширенный алгоритм Евклида
-def ext_gcd(a, b):
-    if a == 0:
-        return (b, 0, 1)
-    else:
-        gcd, x, y = ext_gcd(b % a, a)
-    return (gcd, y - (b // a) * x, x)
-
 #Генерация сильного простого числа и генератора простой подгуппы
 def gen_strong_prime_and_generator(prime_bits):
     p = next_prime(random.getrandbits(prime_bits))
@@ -77,7 +63,7 @@ class ThreadedTCPRequestHandler(socketserver.BaseRequestHandler):
         try:
             max_recv_size = 1024
             self.request.sendall("Strong prime number generator. Better think fast, connection won't stay for long...\nGenerating strong prime number...\n".encode())
-            p, f, g = gen_strong_prime_and_generator(1024)
+            p, f, g = gen_strong_prime_and_generator(512)
             q = f*p+1
             current_question_number = 0
             total_question_number = 100
