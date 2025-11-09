@@ -9,7 +9,7 @@ def get_variant(m):
     h = 0
     for c in m.upper():
         h += alphabet.find(c) + 1
-    return (h % 5) + 1
+    return (h % 3) + 1
 
 def main():
     if len(argv) < 2:
