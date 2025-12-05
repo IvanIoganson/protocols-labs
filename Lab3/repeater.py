@@ -27,10 +27,9 @@ def is_socket_closed(sock: socket.socket) -> bool:
 
 class ThreadedTCPRequestHandler(socketserver.BaseRequestHandler):
     def print_available_connections(self):
-        connections_lock.acquire()
-        conn_count = len(available_connections)-1
-        conn_list = available_connections.keys()
-        connections_lock.release()
+        with connections_lock:
+            conn_count = len(available_connections)-1
+            conn_list = available_connections.keys()
         self.request.sendall("{} available connections:\n".format(conn_count).encode())
         for key in conn_list:
             if key != self.nickname:
@@ -44,18 +43,16 @@ class ThreadedTCPRequestHandler(socketserver.BaseRequestHandler):
                 self.request.sendall("Pick nickname: ".encode())
                 self.nickname = self.request.recv(self.max_recv_size).decode().strip()
                 if re.fullmatch("[a-z0-9_]+", self.nickname, flags=re.IGNORECASE):
-                    connections_lock.acquire()
-                    used = self.nickname in available_connections.keys()
-                    connections_lock.release()
+                    with connections_lock:
+                        used = self.nickname in available_connections.keys()
                     if not used:
                         break
                     else:
                         self.request.sendall("Nickname is already used\n".encode())
                 else:
                     self.request.sendall("Nickname must contain only characters A-Za-z0-9_\n".encode())
-            connections_lock.acquire()
-            available_connections[self.nickname] = self
-            connections_lock.release()
+            with connections_lock:
+                available_connections[self.nickname] = self
             self.print_available_connections()
             self.commands = [""]
         except Exception as e:
@@ -76,9 +73,8 @@ class ThreadedTCPRequestHandler(socketserver.BaseRequestHandler):
                     data = self.commands[0]
                     data = data[data.find(" ") + 1:]
                     data = data[data.find(" ") + 1:]
-                    connections_lock.acquire()
-                    conns = [available_connections[nick] for nick in nicks if (nick in available_connections.keys() and nick != self.nickname)]
-                    connections_lock.release()
+                    with connections_lock:
+                        conns = [available_connections[nick] for nick in nicks if (nick in available_connections.keys() and nick != self.nickname)]
                     for sock in conns:
                         sock.request.sendall(data.encode())
             else:
@@ -101,9 +97,8 @@ class ThreadedTCPRequestHandler(socketserver.BaseRequestHandler):
 
     def finish(self):
         try:
-            connections_lock.acquire()
-            available_connections.pop(self.nickname)
-            connections_lock.release()
+            with connections_lock:
+                available_connections.pop(self.nickname)
         except Exception as e:
             error = getattr(e, 'message', repr(e))
             self.request.sendall("Error: {}\n".format(error).encode())
